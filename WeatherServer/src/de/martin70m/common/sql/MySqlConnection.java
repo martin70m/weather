@@ -12,10 +12,13 @@ public class MySqlConnection {
 	private static final String dataBase = "db1414x685817";
 	private static final String dbms = "mysql";
 	private static final String userName = "sql1414_685817";
-	private static final String password = "niebusz7";
+	private static String password = "";
 
 	
-	
+	public MySqlConnection(String password) {
+		if(password.equals("")) 
+			MySqlConnection.password = password;
+	}
 	public Connection getConnection() throws SQLException {
 
 	    Connection conn = null;

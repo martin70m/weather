@@ -19,7 +19,7 @@ public class WetterTransfer {
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
 
 
-	public static void start()
+	public static void start(String password)
 	{
     	try {
             FTPDownloader ftpDownloader =
@@ -37,7 +37,7 @@ public class WetterTransfer {
         }
         
 		try {
-			MySqlConnection mySqlDB = new MySqlConnection();
+			MySqlConnection mySqlDB = new MySqlConnection(password);
 			try(Connection conn = mySqlDB.getConnection()) {				
 				try(PreparedStatement prep = conn.prepareStatement("SELECT * FROM MyGuests")) {
 					try(ResultSet rs = prep.executeQuery()) {
