@@ -4,6 +4,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 import de.martin70m.common.ftp.FTPDownloader;
 import de.martin70m.common.sql.MySqlConnection;
@@ -19,28 +22,16 @@ public class WetterTransfer {
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
 
 
-	public static void start(String password)
+	public static void start()
 	{
-    	try {
-            FTPDownloader ftpDownloader =
-                new FTPDownloader(FTP_CDC_DWD_DE, "anonymous", "");
-            System.out.println("FTP File downloaded successfully");
-            boolean result = ftpDownloader.listFiles(AIR_TEMPERATURE_RECENT, STATIONEN);
-            System.out.println("File " + STATIONEN + " = " + result);
-            if(result) {
-                ftpDownloader.downloadFiles(AIR_TEMPERATURE_RECENT, LOCAL_DIRECTORY);
-                //ftpDownloader.downloadFileAIR_TEMPERATURE_RECENT + MOEHRENDORF_TEMP, LOCAL_DATA);            	
-            }
-            ftpDownloader.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        
+		
+		int numberFiles = 0;
+		
 		try {
-			MySqlConnection mySqlDB = new MySqlConnection(password);
-			try(Connection conn = mySqlDB.getConnection()) {				
-				try(PreparedStatement prep = conn.prepareStatement("SELECT * FROM MyGuests")) {
-					try(ResultSet rs = prep.executeQuery()) {
+			MySqlConnection mySqlDB = new MySqlConnection();
+			try(final Connection conn = mySqlDB.getConnection()) {				
+				try(final PreparedStatement prep = conn.prepareStatement("SELECT * FROM MyGuests")) {
+					try(final ResultSet rs = prep.executeQuery()) {
 						while(rs.next()) {
 							System.out.println(rs.getString("email") + " - " + rs.getString("reg_date"));
 						}
@@ -53,6 +44,45 @@ public class WetterTransfer {
 		} catch(SQLException se) {
 			System.out.println(se.getMessage());			
 		}
+
+		LocalTime startTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+		
+		try {
+            FTPDownloader ftpDownloader = new FTPDownloader(FTP_CDC_DWD_DE, "anonymous", "");
+            
+            numberFiles = ftpDownloader.downloadFiles(AIR_TEMPERATURE_RECENT, LOCAL_DIRECTORY);
+            if(numberFiles > 0)
+                System.out.println("FTP File downloaded successfully");
+            
+            ftpDownloader.disconnect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+		LocalTime endTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+		
+		Duration duration = Duration.between(startTime, endTime);
+
+        long seconds = duration.getSeconds();
+
+		
+		try {
+			MySqlConnection mySqlDB = new MySqlConnection();
+			try(final Connection conn = mySqlDB.getConnection()) {				
+				try(final PreparedStatement prep = conn.prepareStatement("INSERT INTO FtpDownload (numberFiles, successful, duration, location) VALUES (?,?,?,?);")) {
+					prep.setInt (1, numberFiles);		
+					prep.setString(2, "Y");
+					prep.setLong(3, seconds);
+					prep.setString(4, FTP_CDC_DWD_DE + AIR_TEMPERATURE_RECENT);
+					prep.execute();
+				}
+			}
+			
+		} catch(SQLException se) {
+			System.out.println(se.getMessage());			
+		}
+
+		
+        
 	}
 
 }

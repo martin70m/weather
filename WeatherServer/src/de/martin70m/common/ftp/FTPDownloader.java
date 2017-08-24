@@ -46,31 +46,28 @@ public class FTPDownloader {
     }
 
     // list the files in a specified directory on the FTP
-    public boolean listFiles(String directory, String fileName) throws IOException {
+    public int listFiles(String directory) throws IOException {
         // lists files and directories in the current working directory
-        boolean verificationFilename = false;        
+        int numberFiles = 0;
+        
         FTPFile[] files = ftp.listFiles(directory);
         for (FTPFile file : files) {
-            String details = file.getName();                
+            String details = file.getName();  
+            numberFiles++;
             System.out.println(details);            
-            if(details.equals(fileName))
-            {
-                System.out.println("Correct Filename");
-                verificationFilename=details.equals(fileName);
-                //assertTrue("Verification Failed: The filename is not updated at the CDN end.",details.equals(fileName));                
-            }
         }  
         
-         return verificationFilename;
+         return numberFiles;
     }
-    public boolean downloadFiles(String remoteDirectory, String localDirectory) throws IOException {
+    public int downloadFiles(String remoteDirectory, String localDirectory) throws IOException {
         // lists files and directories in the current working directory
-        boolean verificationFilename = false;        
+    	int numberFiles = 0;        
         FTPFile[] files = ftp.listFiles(remoteDirectory);
         for (FTPFile file : files) { 
         	if (!file.isFile()) {
         		continue;
         	}
+        	numberFiles++;
         	System.out.println("File is " + file.getName()+" getting Downloaded");
             //get output stream
             OutputStream output;
@@ -86,7 +83,7 @@ public class FTPDownloader {
             output.close();
         }  
         
-         return verificationFilename;
+         return numberFiles;
     }
     public void disconnect() {
         if (this.ftp.isConnected()) {

@@ -1,5 +1,9 @@
 package de.martin70m.common.sql;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -11,14 +15,39 @@ public class MySqlConnection {
 	private static final String portNumber = "3306"; 
 	private static final String dataBase = "db1414x685817";
 	private static final String dbms = "mysql";
-	private static final String userName = "sql1414_685817";
-	private static String password = "";
+	private static final String localPropertiesFile = "C:/Temp/db.properties";
+	private static String password;
+	private static String userName;
+	 
+	public MySqlConnection()  {
+		if(MySqlConnection.password == null) {
+			Properties properties = new Properties();
+			BufferedInputStream stream;
+			try {
+				stream = new BufferedInputStream(new FileInputStream(localPropertiesFile));
+				try {
+					properties.load(stream);
+					stream.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 
-	
-	public MySqlConnection(String password) {
-		if(password.equals("")) 
+			String user = properties.getProperty("db.user");
+			String password = properties.getProperty("db.password");
+			
+			MySqlConnection.userName = user;
 			MySqlConnection.password = password;
+			
+		}
 	}
+	
+
 	public Connection getConnection() throws SQLException {
 
 	    Connection conn = null;
