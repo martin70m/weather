@@ -1,5 +1,8 @@
 package de.martin70m.weather.data;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -7,6 +10,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 
 import de.martin70m.common.ftp.FTPDownloader;
 import de.martin70m.common.sql.MySqlConnection;
@@ -14,9 +18,8 @@ import de.martin70m.common.sql.MySqlConnection;
 public class WetterTransfer {
 	
     private static final String STATIONEN = "TU_Stundenwerte_Beschreibung_Stationen.txt";
-	private static final String LOCAL_STATIONEN = "C:/Temp/stationen.txt";
 	private static final String LOCAL_DIRECTORY = "C:/Temp/Wetterdaten";
-	private static final String LOCAL_DATA = "C:/Temp/data.zip";
+	
     private static final String MOEHRENDORF_TEMP = "stundenwerte_TU_01279_akt.zip";
 	private static final String AIR_TEMPERATURE_RECENT = "/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/";
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
@@ -63,8 +66,33 @@ public class WetterTransfer {
 		Duration duration = Duration.between(startTime, endTime);
 
         long seconds = duration.getSeconds();
+		try {
+			File infile=new File(LOCAL_DIRECTORY + "/" + STATIONEN);
 
 		
+//			InputStream input;
+//			input = new FileInputStream(infile);
+//			byte[] b = new byte[256000];
+//			int counter = input.read(b);
+//			String doc2 = new String(b, "UTF-8");
+//			input.close();
+			
+			
+		    List<String> stations = java.nio.file.Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
+		    
+		    if(stations != null && !stations.isEmpty()) {
+			    for (String station : stations) {
+			    	if(station.startsWith("---") || station.startsWith("Station"))
+			    		stations.remove(station);
+			    	else
+			    		System.out.println(station);
+			    }
+		    }
+		    
+		    
+		} catch(IOException fe) {
+			System.out.println(fe.getMessage());
+		}
 		try {
 			MySqlConnection mySqlDB = new MySqlConnection();
 			try(final Connection conn = mySqlDB.getConnection()) {				
