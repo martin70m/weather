@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 
 import de.martin70m.common.ftp.FTPDownloader;
@@ -79,16 +80,20 @@ public class WetterTransfer {
 			
 			
 		    List<String> stations = java.nio.file.Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
+		    List<String> badLines = new ArrayList<String>();
 		    
 		    if(stations != null && !stations.isEmpty()) {
 			    for (String station : stations) {
 			    	if(station.startsWith("---") || station.startsWith("Station"))
-			    		stations.remove(station);
-			    	else
-			    		System.out.println(station);
+			    		badLines.add(station);
 			    }
 		    }
-		    
+		    for(String badLine : badLines) {
+		    	stations.remove(badLine);
+		    }
+		    for (String station : stations) {
+		    	System.out.println(station);
+		    }		    
 		    
 		} catch(IOException fe) {
 			System.out.println(fe.getMessage());
