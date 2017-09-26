@@ -11,7 +11,9 @@ import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import de.martin70m.common.ftp.FTPDownloader;
 import de.martin70m.common.sql.MySqlConnection;
@@ -26,10 +28,11 @@ public class WetterTransfer {
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
 
 
-	public static void start()
+	public static void start(boolean withDownload)
 	{
 		
 		int numberFiles = 0;
+		long seconds = 0;
 		
 		try {
 			MySqlConnection mySqlDB = new MySqlConnection();
@@ -49,37 +52,33 @@ public class WetterTransfer {
 			System.out.println(se.getMessage());			
 		}
 
-		LocalTime startTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+		if(withDownload) {
 		
-		try {
-            FTPDownloader ftpDownloader = new FTPDownloader(FTP_CDC_DWD_DE, "anonymous", "");
-            
-            numberFiles = ftpDownloader.downloadFiles(AIR_TEMPERATURE_RECENT, LOCAL_DIRECTORY);
-            if(numberFiles > 0)
-                System.out.println("FTP File downloaded successfully");
-            
-            ftpDownloader.disconnect();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-		LocalTime endTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+			LocalTime startTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+			
+			try {
+	            FTPDownloader ftpDownloader = new FTPDownloader(FTP_CDC_DWD_DE, "anonymous", "");
+	            
+	            numberFiles = ftpDownloader.downloadFiles(AIR_TEMPERATURE_RECENT, LOCAL_DIRECTORY);
+	            if(numberFiles > 0)
+	                System.out.println("FTP File downloaded successfully");
+	            
+	            ftpDownloader.disconnect();
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+			LocalTime endTime = LocalTime.now(ZoneId.of("Europe/Berlin"));
+			
+			Duration duration = Duration.between(startTime, endTime);
+	
+	        seconds = duration.getSeconds();
+		}
 		
-		Duration duration = Duration.between(startTime, endTime);
-
-        long seconds = duration.getSeconds();
+        List<String> stations = null;
 		try {
 			File infile=new File(LOCAL_DIRECTORY + "/" + STATIONEN);
-
 		
-//			InputStream input;
-//			input = new FileInputStream(infile);
-//			byte[] b = new byte[256000];
-//			int counter = input.read(b);
-//			String doc2 = new String(b, "UTF-8");
-//			input.close();
-			
-			
-		    List<String> stations = java.nio.file.Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
+		    stations = java.nio.file.Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
 		    List<String> badLines = new ArrayList<String>();
 		    
 		    if(stations != null && !stations.isEmpty()) {
@@ -92,7 +91,7 @@ public class WetterTransfer {
 		    	stations.remove(badLine);
 		    }
 		    for (String station : stations) {
-		    	System.out.println(station);
+		    	System.out.println(station);	    	
 		    }		    
 		    
 		} catch(IOException fe) {
@@ -100,13 +99,28 @@ public class WetterTransfer {
 		}
 		try {
 			MySqlConnection mySqlDB = new MySqlConnection();
-			try(final Connection conn = mySqlDB.getConnection()) {				
-				try(final PreparedStatement prep = conn.prepareStatement("INSERT INTO FtpDownload (numberFiles, successful, duration, location) VALUES (?,?,?,?);")) {
-					prep.setInt (1, numberFiles);		
-					prep.setString(2, "Y");
-					prep.setLong(3, seconds);
-					prep.setString(4, FTP_CDC_DWD_DE + AIR_TEMPERATURE_RECENT);
-					prep.execute();
+			try(final Connection conn = mySqlDB.getConnection()) {
+				if(withDownload)
+					try(final PreparedStatement prep = conn.prepareStatement("INSERT INTO FtpDownload (numberFiles, successful, duration, location) VALUES (?,?,?,?);")) {
+						prep.setInt (1, numberFiles);		
+						prep.setString(2, "Y");
+						prep.setLong(3, seconds);
+						prep.setString(4, FTP_CDC_DWD_DE + AIR_TEMPERATURE_RECENT);
+						prep.execute();
+					}
+				
+				for(String station : stations) {
+					//String[] data = station.split("\\s",20);
+					StationDTO stationData = new StationDTO();
+					String[] data = Arrays.asList(station.split("[ ]")).stream().filter(str -> !str.isEmpty()).collect(Collectors.toList()).toArray(new String[0]);
+					stationData.setID(new Integer(data[0]).intValue());
+					stationData.setName(data[6]);
+					try(final PreparedStatement prep = conn.prepareStatement("INSERT INTO Station (id, name) VALUES (?,?);")) {
+						prep.setInt (1, stationData.getID());		
+						prep.setString(2, stationData.getName());
+						prep.execute();				
+					}
+					
 				}
 			}
 			
