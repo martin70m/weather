@@ -17,10 +17,12 @@ import java.util.stream.Collectors;
 
 import de.martin70m.common.ftp.FTPDownloader;
 import de.martin70m.common.sql.MySqlConnection;
+import de.martin70m.common.zip.ZipReader;
 
 public class WetterTransfer {
 	
     private static final String STATIONEN = "TU_Stundenwerte_Beschreibung_Stationen.txt";
+    private static final String WETTERDATEN = "stundenwerte_TU_[ID]_akt.zip";
 	private static final String LOCAL_DIRECTORY = "C:/Temp/Wetterdaten";
 	
     private static final String MOEHRENDORF_TEMP = "stundenwerte_TU_01279_akt.zip";
@@ -125,13 +127,17 @@ public class WetterTransfer {
 					prep.setInt (1, stationData.getID());	
 					try(final ResultSet rs = prep.executeQuery()) {
 						if(rs.next()) {
-							System.out.println(rs.getString("name"));
-							if(stationData.getBisDatum() != rs.getLong("bisDatum")) 
+							
+							if(stationData.getBisDatum() != rs.getLong("bisDatum")) { 
 								try(final PreparedStatement prep1 = conn.prepareStatement("UPDATE Station set bisDatum = ? WHERE id = ?;")) {
 									prep1.setLong(1, stationData.getBisDatum());
 									prep1.setInt(2, stationData.getID());
 									prep1.execute();
+									System.out.println(rs.getString("name") + " updated");
 								}
+							} else {
+								System.out.println(rs.getString("name"));
+							}
 						} else {
 							try(final PreparedStatement prep2 = conn.prepareStatement("INSERT INTO Station (id, name, vonDatum, bisDatum, geoBreite, geoLaenge, hoehe, bundesland) VALUES (?,?,?,?,?,?,?,?);")) {
 								prep2.setInt (1, stationData.getID());		
@@ -147,9 +153,16 @@ public class WetterTransfer {
 							}							
 						}
 						
-					}				
-					
+					}	
+					String id = "0000" + stationData.getID();
+					while(id.length() > 5) {
+						id = id.substring(1, id.length());
+					}
+					String filename = WETTERDATEN.replace("[ID]", id);
+					int filecounter = ZipReader.upzip(LOCAL_DIRECTORY + "/" + filename, LOCAL_DIRECTORY + "/" + id);
+					System.out.println(filename + " extraced to " + filecounter + " files.");
 				}
+				
 			}
 			
 		} catch(SQLException se) {
