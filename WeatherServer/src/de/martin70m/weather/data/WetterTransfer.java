@@ -114,12 +114,40 @@ public class WetterTransfer {
 					StationDTO stationData = new StationDTO();
 					String[] data = Arrays.asList(station.split("[ ]")).stream().filter(str -> !str.isEmpty()).collect(Collectors.toList()).toArray(new String[0]);
 					stationData.setID(new Integer(data[0]).intValue());
+					stationData.setVonDatum(new Integer(data[1]).intValue());
+					stationData.setBisDatum(new Integer(data[2]).intValue());
+					stationData.setHeight(new Integer(data[3]).intValue());
+					stationData.setLatitude(data[4]);
+					stationData.setLongitude(data[5]);
 					stationData.setName(data[6]);
-					try(final PreparedStatement prep = conn.prepareStatement("INSERT INTO Station (id, name) VALUES (?,?);")) {
-						prep.setInt (1, stationData.getID());		
-						prep.setString(2, stationData.getName());
-						prep.execute();				
-					}
+					stationData.setLand(data[7]);
+					PreparedStatement prep = conn.prepareStatement("SELECT * FROM Station WHERE id = ?;");
+					prep.setInt (1, stationData.getID());	
+					try(final ResultSet rs = prep.executeQuery()) {
+						if(rs.next()) {
+							System.out.println(rs.getString("name"));
+							if(stationData.getBisDatum() != rs.getLong("bisDatum")) 
+								try(final PreparedStatement prep1 = conn.prepareStatement("UPDATE Station set bisDatum = ? WHERE id = ?;")) {
+									prep1.setLong(1, stationData.getBisDatum());
+									prep1.setInt(2, stationData.getID());
+									prep1.execute();
+								}
+						} else {
+							try(final PreparedStatement prep2 = conn.prepareStatement("INSERT INTO Station (id, name, vonDatum, bisDatum, geoBreite, geoLaenge, hoehe, bundesland) VALUES (?,?,?,?,?,?,?,?);")) {
+								prep2.setInt (1, stationData.getID());		
+								prep2.setString(2, stationData.getName());
+								prep2.setLong(3, stationData.getVonDatum());
+								prep2.setLong(4, stationData.getBisDatum());
+								prep2.setString(5, stationData.getLatitude());
+								prep2.setString(6, stationData.getLongitude());
+								prep2.setInt(7, stationData.getHeight());
+								prep2.setString(8, stationData.getLand());
+								
+								prep2.execute();				
+							}							
+						}
+						
+					}				
 					
 				}
 			}
