@@ -1,4 +1,4 @@
-package de.martin70m.common.ftp;
+package de.martin70m.common.io;
 
 
 import java.io.File;

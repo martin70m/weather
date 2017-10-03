@@ -3,6 +3,7 @@ package de.martin70m.weather.data;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,9 +16,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import de.martin70m.common.ftp.FTPDownloader;
+import de.martin70m.common.io.FTPDownloader;
+import de.martin70m.common.io.FileFinder;
+import de.martin70m.common.io.ZipReader;
 import de.martin70m.common.sql.MySqlConnection;
-import de.martin70m.common.zip.ZipReader;
 
 public class WetterTransfer {
 	
@@ -80,18 +82,7 @@ public class WetterTransfer {
 		try {
 			File infile=new File(LOCAL_DIRECTORY + "/" + STATIONEN);
 		
-		    stations = java.nio.file.Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
-		    List<String> badLines = new ArrayList<String>();
-		    
-		    if(stations != null && !stations.isEmpty()) {
-			    for (String station : stations) {
-			    	if(station.startsWith("---") || station.startsWith("Station"))
-			    		badLines.add(station);
-			    }
-		    }
-		    for(String badLine : badLines) {
-		    	stations.remove(badLine);
-		    }
+		    stations = readDataFromFile(infile);
 		    for (String station : stations) {
 		    	System.out.println(station);	    	
 		    }		    
@@ -161,6 +152,44 @@ public class WetterTransfer {
 					String filename = WETTERDATEN.replace("[ID]", id);
 					int filecounter = ZipReader.upzip(LOCAL_DIRECTORY + "/" + filename, LOCAL_DIRECTORY + "/" + id);
 					System.out.println(filename + " extraced to " + filecounter + " files.");
+					//produkt_tu_stunde
+					if(filecounter > 0) {
+						String unzippedDir = LOCAL_DIRECTORY + "/" + id;
+						String filename1 = FileFinder.find("produkt_tu_stunde", unzippedDir);
+						File infile=new File(unzippedDir + "/" + filename1);
+						List<String> temperatures = null;
+					    try {
+					    	temperatures = readDataFromFile(infile);
+						    for (String temperature : temperatures) {
+						    	System.out.println(temperature);	
+						    	MesswertDTO messwert = new MesswertDTO();
+								List<String> data1 = Arrays.asList(temperature.split(";"));
+								messwert.setStationID(new Integer(data1.get(0).trim()).intValue());
+								long datetime = new Integer(data1.get(1).trim()).intValue();
+								messwert.setDate(datetime/100);
+								long time = datetime - messwert.getDate()*100;
+								messwert.setHour((int)time);
+								messwert.setTemperatur(data1.get(3).trim());
+								messwert.setHumidity(data1.get(4).trim());
+								
+								try(final PreparedStatement prep2 = conn.prepareStatement("INSERT INTO Messwert (stationid, datum, uhrzeit, temperatur, luftfeuchte) VALUES (?,?,?,?,?);")) {
+									prep2.setInt (1, messwert.getStationID());		
+									prep2.setLong(2, messwert.getDate());
+									prep2.setInt(3, messwert.getHour());
+									prep2.setString(4, messwert.getTemperatur());
+									prep2.setString(5, messwert.getHumidity());
+									
+									prep2.execute();				
+								}							
+
+						    }		    
+
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+
+					}
 				}
 				
 			}
@@ -171,6 +200,24 @@ public class WetterTransfer {
 
 		
         
+	}
+
+
+	private static List<String> readDataFromFile(File infile) throws IOException {
+		List<String> allLines;
+		allLines = Files.readAllLines(infile.toPath(), StandardCharsets.ISO_8859_1);
+		List<String> badLines = new ArrayList<String>();
+		
+		if(allLines != null && !allLines.isEmpty()) {
+		    for (String line : allLines) {
+		    	if(line.startsWith("---") || line.toUpperCase().startsWith("STATION"))
+		    		badLines.add(line);
+		    }
+		}
+		for(String badLine : badLines) {
+			allLines.remove(badLine);
+		}
+		return allLines;
 	}
 
 }

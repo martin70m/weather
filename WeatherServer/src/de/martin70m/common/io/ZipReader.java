@@ -1,4 +1,4 @@
-package de.martin70m.common.zip;
+package de.martin70m.common.io;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
