@@ -26,8 +26,7 @@ public class WetterTransfer {
     private static final String STATIONEN = "TU_Stundenwerte_Beschreibung_Stationen.txt";
     private static final String WETTERDATEN = "stundenwerte_TU_[ID]_akt.zip";
 	private static final String LOCAL_DIRECTORY = "C:/Temp/Wetterdaten";
-	
-    private static final String MOEHRENDORF_TEMP = "stundenwerte_TU_01279_akt.zip";
+
 	private static final String AIR_TEMPERATURE_RECENT = "/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/";
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
 
@@ -159,28 +158,58 @@ public class WetterTransfer {
 						File infile=new File(unzippedDir + "/" + filename1);
 						List<String> temperatures = null;
 					    try {
+					    	int alteStationsID = 0;
+					    	long maxDatum = 0;
+					    	int maxUhrzeit = 0;
 					    	temperatures = readDataFromFile(infile);
 						    for (String temperature : temperatures) {
 						    	System.out.println(temperature);	
 						    	MesswertDTO messwert = new MesswertDTO();
 								List<String> data1 = Arrays.asList(temperature.split(";"));
 								messwert.setStationID(new Integer(data1.get(0).trim()).intValue());
+								if(alteStationsID != messwert.getStationID()) {
+									try(final PreparedStatement prep3 = conn.prepareStatement("SELECT max(datum) as maxdatum, max(uhrzeit) as maxuhrzeit FROM Messwert WHERE stationid = ?;" )) {
+										prep3.setInt (1, messwert.getStationID());		
+										try(final ResultSet rs = prep3.executeQuery()) {
+											if(rs.next()) {
+												maxDatum = rs.getLong("maxdatum");
+												maxUhrzeit = rs.getInt("maxuhrzeit");
+												alteStationsID = messwert.getStationID();
+											}
+										}
+										
+									}
+								}
 								long datetime = new Integer(data1.get(1).trim()).intValue();
 								messwert.setDate(datetime/100);
 								long time = datetime - messwert.getDate()*100;
 								messwert.setHour((int)time);
-								messwert.setTemperatur(data1.get(3).trim());
-								messwert.setHumidity(data1.get(4).trim());
 								
-								try(final PreparedStatement prep2 = conn.prepareStatement("INSERT INTO Messwert (stationid, datum, uhrzeit, temperatur, luftfeuchte) VALUES (?,?,?,?,?);")) {
-									prep2.setInt (1, messwert.getStationID());		
-									prep2.setLong(2, messwert.getDate());
-									prep2.setInt(3, messwert.getHour());
-									prep2.setString(4, messwert.getTemperatur());
-									prep2.setString(5, messwert.getHumidity());
-									
-									prep2.execute();				
-								}							
+								if(messwert.getDate() > maxDatum || messwert.getDate() == maxDatum && messwert.getHour() > maxUhrzeit) {
+									messwert.setTemperatur(data1.get(3).trim());
+									messwert.setHumidity(data1.get(4).trim());
+									try(final PreparedStatement prep3 = conn.prepareStatement("SELECT count(*) as anzahl FROM Messwert WHERE stationid = ? AND datum = ? and uhrzeit = ?;" )) {
+										prep3.setInt (1, messwert.getStationID());		
+										prep3.setLong(2, messwert.getDate());
+										prep3.setInt(3, messwert.getHour());
+										try(final ResultSet rs = prep3.executeQuery()) {
+											if(rs.next()) {
+												if(rs.getLong("anzahl") == 0) {
+													try(final PreparedStatement prep2 = conn.prepareStatement("INSERT INTO Messwert (stationid, datum, uhrzeit, temperatur, luftfeuchte) VALUES (?,?,?,?,?);")) {
+														prep2.setInt (1, messwert.getStationID());		
+														prep2.setLong(2, messwert.getDate());
+														prep2.setInt(3, messwert.getHour());
+														prep2.setString(4, messwert.getTemperatur());
+														prep2.setString(5, messwert.getHumidity());
+														
+														prep2.execute();				
+														System.out.println("inserted to database");
+													}
+												}
+											}
+										}
+									}								
+								}										
 
 						    }		    
 

@@ -4,9 +4,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Date;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -28,6 +31,20 @@ public class ZipReader {
                 ZipInputStream stream = new ZipInputStream(new FileInputStream(filename));
         )
         {
+        	
+        	Files.walkFileTree(outDir, new SimpleFileVisitor<Path>() {
+        		   @Override
+        		   public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        		       Files.delete(file);
+        		       return FileVisitResult.CONTINUE;
+        		   }
+
+        		   @Override
+        		   public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+        		       Files.delete(dir);
+        		       return FileVisitResult.CONTINUE;
+        		   }
+        		});
         	Files.createDirectories(outDir);
             // now iterate through each file in the zip archive. The get
             // next entry call will return a ZipEntry for each file in
