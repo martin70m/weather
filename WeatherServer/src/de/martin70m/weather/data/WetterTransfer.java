@@ -61,6 +61,7 @@ public class WetterTransfer {
 			try (final Connection conn = mySqlDB.getConnection()) {
 				if (withDownload)
 					saveStaticData(numberFiles, seconds, conn);
+				conn.setAutoCommit(false);
 
 				for (String station : stations) {
 					// String[] data = station.split("\\s",20);
@@ -101,6 +102,8 @@ public class WetterTransfer {
 								List<String> data1 = Arrays.asList(temperature.split(";"));
 								messwert.setStationID(new Integer(data1.get(0).trim()).intValue());
 								if (alteStationsID != messwert.getStationID()) {
+									conn.commit();
+
 									try (final PreparedStatement prep3 = conn.prepareStatement(
 											"SELECT max(datum) as maxdatum, max(uhrzeit) as maxuhrzeit FROM Messwert WHERE stationid = ?;")) {
 										prep3.setInt(1, messwert.getStationID());
@@ -125,32 +128,36 @@ public class WetterTransfer {
 										|| messwert.getDate() == maxDatum && messwert.getHour() > maxUhrzeit) {
 									messwert.setTemperatur(data1.get(3).trim());
 									messwert.setHumidity(data1.get(4).trim());
-									try (final PreparedStatement prep3 = conn.prepareStatement(
-											"SELECT count(*) as anzahl FROM Messwert WHERE stationid = ? AND datum = ? and uhrzeit = ?;")) {
-										prep3.setInt(1, messwert.getStationID());
-										prep3.setLong(2, messwert.getDate());
-										prep3.setInt(3, messwert.getHour());
-										try (final ResultSet rs = prep3.executeQuery()) {
-											if (rs.next()) {
-												if (rs.getLong("anzahl") == 0) {
-													try (final PreparedStatement prep2 = conn.prepareStatement(
-															"INSERT INTO Messwert (stationid, datum, uhrzeit, temperatur, luftfeuchte) VALUES (?,?,?,?,?);")) {
-														prep2.setInt(1, messwert.getStationID());
-														prep2.setLong(2, messwert.getDate());
-														prep2.setInt(3, messwert.getHour());
-														prep2.setString(4, messwert.getTemperatur());
-														prep2.setString(5, messwert.getHumidity());
+									// try (final PreparedStatement prep3 = conn.prepareStatement(
+									// "SELECT count(*) as anzahl FROM Messwert WHERE stationid = ? AND datum = ?
+									// and uhrzeit = ?;")) {
+									// prep3.setInt(1, messwert.getStationID());
+									// prep3.setLong(2, messwert.getDate());
+									// prep3.setInt(3, messwert.getHour());
+									// }
 
-														prep2.execute();
-														System.out.println("inserted to database");
-													}
-												}
-											}
-										}
+									// try (final ResultSet rs = prep3.executeQuery()) {
+									// if (rs.next()) {
+									// if (rs.getLong("anzahl") == 0) {
+									try (final PreparedStatement prep2 = conn.prepareStatement(
+											"INSERT INTO Messwert (stationid, datum, uhrzeit, temperatur, luftfeuchte) VALUES (?,?,?,?,?);")) {
+										prep2.setInt(1, messwert.getStationID());
+										prep2.setLong(2, messwert.getDate());
+										prep2.setInt(3, messwert.getHour());
+										prep2.setString(4, messwert.getTemperatur());
+										prep2.setString(5, messwert.getHumidity());
+
+										prep2.execute();
+										System.out.println("inserted to database");
 									}
+									// }
+									// }
+									// }
+
 								}
 
 							}
+							conn.commit();
 
 						} catch (IOException e) {
 							// TODO Auto-generated catch block
@@ -195,6 +202,7 @@ public class WetterTransfer {
 						prep1.setLong(1, stationData.getBisDatum());
 						prep1.setInt(2, stationData.getID());
 						prep1.execute();
+						conn.commit();
 						System.out.println(rs.getString("name") + " updated");
 					}
 				} else {
