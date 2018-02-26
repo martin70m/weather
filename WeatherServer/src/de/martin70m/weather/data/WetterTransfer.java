@@ -28,19 +28,18 @@ public class WetterTransfer {
 
 	private static final String STATIONEN = "TU_Stundenwerte_Beschreibung_Stationen.txt";
 	private static final String WETTERDATEN = "stundenwerte_TU_[ID]_akt.zip";
-	private static final String LOCAL_DIRECTORY = "/Wetterdaten";
+	private static final String LOCAL_DIRECTORY = "/deployments/Wetterdaten";
 
 	private static final String AIR_TEMPERATURE_RECENT = "/pub/CDC/observations_germany/climate/hourly/air_temperature/recent/";
 	private static final String FTP_CDC_DWD_DE = "ftp-cdc.dwd.de";
 
 	public static void start(boolean withDownload) {
 
-		int numberFiles = 0;
+		int numberFiles = 0; 
 		long seconds = 0;
-		File homedir = new File(System.getProperty("user.home"));
-		String path = homedir + LOCAL_DIRECTORY;
+		String path = LOCAL_DIRECTORY;
 
-		printOutVisitors();
+		//printOutVisitors();
 
 		if (withDownload) {
 
@@ -78,9 +77,11 @@ public class WetterTransfer {
 					try {
 						Files.createDirectories(outDir);
 					} catch (FileAlreadyExistsException e4) {
-						System.out.println(unzippedDir + " alrady exists");
+						//e4.printStackTrace();
+						//OK
 					} catch (IOException e3) {
-						e3.printStackTrace();
+						//e3.printStackTrace();
+						//OK
 					}
 
 					int filecounter = ZipReader.upzip(path + "/" + filename, unzippedDir);
@@ -97,7 +98,7 @@ public class WetterTransfer {
 							temperatures = readDataFromFile(infile);
 
 							for (String temperature : temperatures) {
-								System.out.println(temperature);
+								
 								MesswertDTO messwert = new MesswertDTO();
 								List<String> data1 = Arrays.asList(temperature.split(";"));
 								messwert.setStationID(new Integer(data1.get(0).trim()).intValue());
@@ -148,7 +149,7 @@ public class WetterTransfer {
 										prep2.setString(5, messwert.getHumidity());
 
 										prep2.execute();
-										System.out.println("inserted to database");
+										System.out.println(temperature + " inserted to database");
 									}
 									// }
 									// }
@@ -238,7 +239,7 @@ public class WetterTransfer {
 			prep.execute();
 		}
 	}
-
+/*
 	private static void printOutVisitors() {
 		try {
 			MySqlConnection mySqlDB = new MySqlConnection();
@@ -258,7 +259,7 @@ public class WetterTransfer {
 			System.out.println(se.getMessage());
 		}
 	}
-
+*/
 	private static List<String> extractStationsFromFile(String path) {
 		List<String> stations = null;
 		try {
